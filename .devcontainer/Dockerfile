@@ -10,6 +10,3 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
 RUN add-apt-repository ppa:pistache+team/unstable \
     && apt update \
     && apt -y install libpistache-dev
-# sudo add-apt-repository ppa:pistache+team/unstable\
-# sudo apt update \
-# sudo apt install libpistache-dev \
