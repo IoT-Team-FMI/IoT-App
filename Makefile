@@ -1,2 +1,7 @@
-greenhouse: greenhouse_app.cpp
-	g++ $< -o $@ -lpistache -lcrypto -lssl -lpthread
+CXXFLAGS= -std=c++17
+LDLIBS= -lpistache -lcrypto -lssl -lpthread
+
+include easymake.mk
+
+# greenhouse: greenhouse_app.cpp
+#	g++ $< -o $@ -lpistache -lcrypto -lssl -lpthread
