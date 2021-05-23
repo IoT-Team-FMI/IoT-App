@@ -53,7 +53,7 @@ namespace Generic {
 
 struct doubleSetting {
     std::string name;
-    int value;
+    double value;
 };
 
 struct stringSetting {
@@ -123,6 +123,7 @@ private:
         Routes::Get(router, "/irigationTime", Routes::bind(&GreenhouseEndpoint::getIrigationTime, this));
         Routes::Get(router, "/preconfigurations/getAll", Routes::bind(&GreenhouseEndpoint::getPreconfigurations, this));
         Routes::Post(router, "/preconfigurations/select/:value", Routes::bind(&GreenhouseEndpoint::setPreconfiguration, this));
+        Routes::Post(router, "/preconfigurations", Routes::bind(&GreenhouseEndpoint::addPreconfiguration, this));
         Routes::Get(router, "/plantType", Routes::bind(&GreenhouseEndpoint::getPlantTypeSuggestion, this));
     }
 
@@ -162,6 +163,32 @@ private:
         }
         else {
             response.send(Http::Code::Not_Found, settingName + " was not found and or '" + val + "' was not a valid value ");
+        }
+
+    }
+
+    void addPreconfiguration(const Rest::Request& request, Http::ResponseWriter response){
+        // You don't know what the parameter content that you receive is, but you should
+        // try to cast it to some data structure. Here, I cast the settingName to string.
+        string requestSettings = request.body();
+        Preconfiguration p;
+
+        json j = json::parse(requestSettings);
+
+        // This is a guard that prevents editing the same value by two concurent threads. 
+        Guard guard(greenhouseLock);
+
+        from_json(j, p);     
+
+        // Setting the Greenhouse's setting to value
+        int setResponse = gh.addPreconfiguration(p);
+
+        // Sending some confirmation or error response.
+        if (setResponse == 1) {
+            response.send(Http::Code::Ok, "Added a new preconfiguration");
+        }
+        else {
+            response.send(Http::Code::Not_Found, "Error occured. Could not add a new preconfiguration");
         }
 
     }
@@ -329,6 +356,14 @@ private:
             waterAmount.name = "waterAmount";
             plantType.name = "plantType";
 
+            humidity.value = 0;
+            luminosity.value = 0;
+            temperature.value = 0;
+            carbonDioxide.value = 0;
+            area.value = 0;
+            waterAmount.value = 0;
+            plantType.value = "";
+
             readSoilHistory();
             readIdealParameters();
             readPreconfigurations();
@@ -482,7 +517,7 @@ private:
                     double doubleValue = std::stod(value);
                     if (doubleValue >= 0 && doubleValue <= 100)
                     {
-                        temperature.value = doubleValue;
+                        carbonDioxide.value = doubleValue;
                         return 1;
                     }
                 }
@@ -599,11 +634,13 @@ private:
 
             newtime = *localtime(&now);
 
+            std::string day = "";
+            int count = 0;
 
             if (newtime.tm_mday % 2 == 0)
             {
-                response = "Tomorrow, " + to_string(newtime.tm_mday + 1) + "/" + to_string(newtime.tm_mon) + "/" +
-                    to_string(newtime.tm_year) + ", " + "07:00:00 AM";
+                day = "Tomorrow, ";
+                count = 1;
             }
             else
             {
@@ -612,27 +649,36 @@ private:
 
                 const char* irigationTime = "7:0:0";
 
-                if (currentTime.compare(irigationTime) > 0)
-                    cout << "lower";
-                else
-                    cout << "higher";
-
-                
                 struct tm irigationTimeTransformed = { 0 };
                 strptime(irigationTime, "%H:%M:%S", &irigationTimeTransformed);
                 time_t irigation = mktime(&irigationTimeTransformed);
 
                 if (now < irigation)
-                    response = "Today, " + to_string(newtime.tm_mday) + "/" + to_string(newtime.tm_mon) + "/" +
-                    to_string(newtime.tm_year) + ", " + "07:00:00 AM";
+                {
+                    day = "Today, ";
+                    count = 0;
+                }
+                    
                 else 
-                response = "After 2 days, " + to_string(newtime.tm_mday) + "/" + to_string(newtime.tm_mon) + "/" +
-                    to_string(newtime.tm_year) + ", " + "07:00:00 AM";
+                {
+                    day = "After 2 days, ";
+                    count = 2;
+                }   
             }
+            
+            
+             response = day + to_string(newtime.tm_mday + count) + "/" + to_string(newtime.tm_mon + 1) + "/" +
+                    to_string(newtime.tm_year + 1900) + ", " + "07:00:00 AM";
 
             json j;
             j["irigationTime"] = response;
             return j.dump();
+        }
+
+        int addPreconfiguration(Preconfiguration p)
+        {
+            preconfigurations.push_back(p);
+            return 1;
         }
 
 

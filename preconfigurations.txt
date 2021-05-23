@@ -1,3 +1,3 @@
 2
-60 30 15 0.3 rosie
-50 32 13 0.25 castravete
+60 30 15 2.2 rosie
+50 32 13 3.3 castravete
