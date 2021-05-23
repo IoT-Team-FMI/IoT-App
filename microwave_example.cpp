@@ -37,7 +37,7 @@ void printCookies(const Http::Request& req) {
 namespace Generic {
 
     void handleReady(const Rest::Request&, Http::ResponseWriter response) {
-        response.send(Http::Code::Ok, "1");
+        response.send(Http::Code::Ok, "2");
     }
 
 }

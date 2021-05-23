@@ -18,6 +18,12 @@
 #include <signal.h>
 #include <map>
 #include <list>
+#include <fstream>
+
+// #include <nlohmann/json.hpp>
+
+// using json = nlohmann::json;
+
 using namespace std;
 using namespace Pistache;
 
@@ -38,10 +44,20 @@ void printCookies(const Http::Request& req) {
 namespace Generic {
 
     void handleReady(const Rest::Request&, Http::ResponseWriter response) {
-        response.send(Http::Code::Ok, "1");
+        response.send(Http::Code::Ok, "2");
     }
 
 }
+
+struct doubleSetting {
+    std::string name;
+    int value;
+};
+
+struct stringSetting {
+    std::string name;
+    std::string value;
+};
 
 // Definition of the GreenhouseEnpoint class 
 class GreenhouseEndpoint {
@@ -147,44 +163,191 @@ private:
     // Defining the class of the Greenhouse. It should model the entire configuration of the Greenhouse
     class Greenhouse {
     public:
-        explicit Greenhouse(){ }
+        explicit Greenhouse(){ 
+            humidity.name = "humidity";
+            luminosity.name = "luminosity";
+            temperature.name = "temperature";
+            carbonDioxide.name = "carbonDioxide";
+            area.name = "area";
+            waterAmount.name = "waterAmount";
+            plantType.name = "plantType";
+
+            readSoilHistory();
+            readIdealParameters();
+        }
+        
+        void readSoilHistory()
+        {
+            ifstream fin(soilHistoryLocation);
+            int nrYears;
+            fin >> nrYears;
+            for (int i = 0; i < nrYears; i++)
+            {
+                std::string plant;
+                fin >> plant;
+                soilHistory.push_back(plant);
+            }
+
+        }
+
+        void readIdealParameters()
+        {
+            ifstream fin(idealParametersLocation);
+            double value[4];
+            fin >> value[0] >> value[1] >> value[2] >> value[3];
+            ideal_parameters.luminosity = value[0];
+            ideal_parameters.humidity = value[1];
+            ideal_parameters.temperature = value[2];
+            ideal_parameters.carbonDioxide = value[3];
+        }
 
         // Setting the value for one of the settings. Hardcoded for the defrosting option
         int set(std::string name, std::string value){
-            if(name == "defrost"){
-                defrost.name = name;
-                if(value == "true"){
-                    defrost.value = true;
-                    return 1;
+            if (luminosity.name == name) {
+                try 
+                {
+                    double doubleValue = std::stod(value);
+                    if (doubleValue >= 0 && doubleValue <= 100)
+                    {
+                        luminosity.value = doubleValue;
+                        return 1;
+                    }
                 }
-                if(value == "false"){
-                    defrost.value = false;
-                    return 1;
+                catch(std::exception)
+                {
+                    return 0;
                 }
             }
+
+            if (humidity.name == name) {
+                try 
+                {
+                    double doubleValue = std::stod(value);
+                    if (doubleValue >= 0 && doubleValue <= 100)
+                    {
+                        humidity.value = doubleValue;
+                        return 1;
+                    }
+                }
+                catch(std::exception)
+                {
+                    return 0;
+                }
+            }
+
+            if (temperature.name == name) {
+                try 
+                {
+                    double doubleValue = std::stod(value);
+                    if (doubleValue >= 5 && doubleValue <= 35)
+                    {
+                        temperature.value = doubleValue;
+                        return 1;
+                    }
+                }
+                catch(std::exception)
+                {
+                    return 0;
+                }
+            }
+
+            if (carbonDioxide.name == name) {
+                try 
+                {
+                    double doubleValue = std::stod(value);
+                    if (doubleValue >= 0 && doubleValue <= 100)
+                    {
+                        temperature.value = doubleValue;
+                        return 1;
+                    }
+                }
+                catch(std::exception)
+                {
+                    return 0;
+                }
+            }
+
+            if (area.name == name) {
+                try 
+                {
+                    double doubleValue = std::stod(value);
+                    if (doubleValue >= 0)
+                    {
+                        area.value = doubleValue;
+                        return 1;
+                    }
+                }
+                catch(std::exception)
+                {
+                    return 0;
+                }
+            }
+
+            if (waterAmount.name == name) {
+                try 
+                {
+                    double doubleValue = std::stod(value);
+                    if (doubleValue >= 0)
+                    {
+                        waterAmount.value = doubleValue;
+                        return 1;
+                    }
+                }
+                catch(std::exception)
+                {
+                    return 0;
+                }
+            }
+
+             if (plantType.name == name) {
+                plantType.value = value;
+                return 1;
+            }
+
             return 0;
         }
 
         // Getter
         string get(std::string name){
-            if (name == "defrost"){
-                return std::to_string(defrost.value);
+            if (name == luminosity.name) {
+                return std::to_string(luminosity.value);
             }
-            else{
-                return "";
+            if (name == humidity.name) {
+                return std::to_string(humidity.value);
+            }
+            if (name == temperature.name) {
+                return std::to_string(temperature.value);
+            }
+            if (name == carbonDioxide.name) {
+                return std::to_string(carbonDioxide.value);
+            }
+            if (name == area.name) {
+                return std::to_string(area.value);
+            }
+            if (name == waterAmount.name) {
+                return std::to_string(waterAmount.value);
+            }
+            if (name == plantType.name) {
+                return plantType.value;
             }
         }
         
     private:
         struct parameters {
-            int luminosity;
-            int humidity;
-            int temperature;
-        }current_parameters, ideal_parameters;
+            double luminosity;
+            double humidity;
+            double temperature;
+            double carbonDioxide;
+        }ideal_parameters;
+
+        doubleSetting luminosity, humidity, temperature, carbonDioxide, area, waterAmount;
+        stringSetting plantType;
 
         map<std::string, std::string> actions;
-        std::string plant_type;
-        list<std::string> soil_history;
+        list<std::string> soilHistory;
+        const std::string soilHistoryLocation = "soil_history.txt";
+        const std::string idealParametersLocation = "ideal_parameters.txt";
+
 
         // temporary
         // Defining and instantiating settings.
@@ -243,7 +406,6 @@ int main(int argc, char *argv[]) {
     // Initialize and start the server
     stats.init(thr);
     stats.start();
-
 
     // Code that waits for the shutdown sinal for the server
     int signal = 0;
