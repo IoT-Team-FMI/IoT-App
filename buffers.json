@@ -1,130 +1,173 @@
 {
   "device-name": "SmartGreenhouse",
-  "device-type": "Sensors",
-  "buffers-count": 5,
+  "device-type": "Greenhouse",
+  "buffers-count": 10,
   "input-buffers":{
       "1":{
-          "token-delimitators": "", //Symbol that separates the tokens in the buffer
-          "protocol": "HTTP", // The protocol used to communicate with this buffer
-          "prefix": "http://127.0.0.1:9080/", // The buffer requires that it is initialized with this content
-          "buffer-tokens":[// Description of each of the tokens that this buffer can receive. Think of them as the message's variables.
-          {
-              "name":"Camera command",
-              "description":"Input that selects command",
-              "token-type":"string", // What type of token should be fuzzed in this position of the buffer
-              "byte-size":256, //Maximum size of the token
-              "regex-rule": "[a-zA-Z]*", // Optional parameter to guide fuzzer generator
-              "optional": false // Can the fuzzer give a null value on this token?
-          },
-          {
-              "name":"Camera parameter",
-              "description": "Parameters for the command chosen",
-              "token-type":"string",
-              "byte-size":256,
-              "regex-rule": "=[a-zA-Z0-9]*",
-              "optional": true
-          },
+          "token-delimitators": "/",
+          "protocol": "HTTP",
+          "prefix": "http://127.0.0.1:9080/settings",
+          "buffer-tokens":[
           {
             "name":"Greenhouse parameter",
             "description": "Setting the parameter with the provided name",
             "token-type":"string",
             "byte-size":256,
-            "regex-rule": "settings/[a-zA-Z]*/[a-zA-Z0-9]*",
+            "regex-rule": "[a-zA-Z0-9]*",
             "optional": false
-          },
+          }
+        ]
+      },
 
-          {
-            "name":"Greenhouse preconfiguration",
-            "description": "Setting the greenhouse parameters with a preconfiguration",
-            "token-type":"string",
-            "byte-size":256,
-            "regex-rule": "preconfigurations/select/[0-9]*",
-            "optional": false
-          },
+        "2":{
+          "token-delimitators": "",
+          "protocol": "HTTP",
+          "prefix": "http://127.0.0.1:9080/preconfigurations/select",
+          "buffer-tokens":[
+            {
+              "name":"Greenhouse preconfiguration",
+              "description": "Setting the greenhouse parameters with a preconfiguration",
+              "token-type":"string",
+              "byte-size":256,
+              "regex-rule": "[0-9]*",
+              "optional": false
+            }
+          ]
+        },
 
+         
+        "3":{
+          "token-delimitators": "",
+          "protocol": "HTTP",
+          "prefix": "http://127.0.0.1:9080/preconfigurations",
+          "buffer-tokens":[
           {
             "name":"New preconfiguration",
             "description": "Adding a new preconfiguration to the greenhouse",
-            "token-type":"string",
+            "token-type":"JSON",
             "byte-size":256,
-            "regex-rule": "preconfigurations",
+            "regex-rule": "",
             "optional": false
-          },
-          
+          } 
           ]
       },
 
-  // So basically above, we actually have a generic way of telling the fuzzer that it is going to fuzz
-  // a HTTP Get request, with one parameter. The buffer tokens described could very well fit any
-  // type of system that takes input through the HTTP protocol. How would a buffer that takes a string
-  // and a Base64 image as input through SSH?
-
-      "2":{
-          "token-delimitators": " ",
-          "protocol": "SSH",
-          "prefix": "ssh user@192.168.0.112 -p securePass",
-          "buffer-tokens":[
-              {
-                  "name": "Program command",
-                  "description": "Program that is to be used",
-                  "token-type": "string",
-                  "byte-size":256,
-                  "regex-rule": "[a-z]*",
-                  "optional": "false",
-              },
-              {
-                  "name": "Image",
-                  "description": "A Base64 image",
-                  "token-type": "Base64",
-                  "byte-size":256,
-                  "regex-rule": "[^-A-Za-z0-9+/=]|=[^=]|={3,}$", // Stackoverflow approved
-                  "optional": false
-              }
-          ]
-      }
+      "4":{
+        "token-delimitators": "",
+        "protocol": "HTTP",
+        "prefix": "http://127.0.0.1:9080/soilHistory",
+        "buffer-tokens":[
+        {
+          "name":"New plant to soil history",
+          "description": "Adding a new plant to soil history",
+          "token-type":"JSON",
+          "byte-size":256,
+          "regex-rule": "",
+          "optional": false
+        } 
+        ]
+    }
   },
   "output-buffers":{
       "1":{
           "token-delimitators": " ",
           "protocol": "HTTP",
-          "prefix": "http://127.0.0.1:9080/", // The buffer requires that it is initialized with this content
-          "caller":"remote", // Remote or Local. The caller variable describes who runs this buffer. Either
-// your app sends the data (local), or the data is requested by another device (remote)
+          "prefix": "http://127.0.0.1:9080/settings/getAll", 
+          "caller":"remote", 
           "buffer-tokens":[
           {
               "name":"Get all settings",
               "description":"Command to get all settings",
-              "token-type":"string", // What type of token should be fuzzed in this position of the buffer
+              "token-type":"string", 
               "byte-size":256,
-              "regex-rule": "/settings/getAll", // Optional parameter to guide fuzzer generator
-              "optional": false // Can the fuzzer give a null value on this token?
-          },
+              "regex-rule": "",
+              "optional": false
+          }
+        ]
+      },
+
+      "2":{
+        "token-delimitators": "",
+        "protocol": "HTTP",
+        "prefix": "http://127.0.0.1:9080/settings/", 
+        "caller":"remote",
+        "buffer-tokens":[
           {
             "name":"Get a certain setting",
             "description":"Command to get a certain setting",
-            "token-type":"string", // What type of token should be fuzzed in this position of the buffer
+            "token-type":"string",
             "byte-size":256,
-            "regex-rule": "/settings/[a-zA-Z]*", // Optional parameter to guide fuzzer generator
-            "optional": false // Can the fuzzer give a null value on this token?
-          },
+            "regex-rule": "[a-zA-Z]*",
+            "optional": false
+          }
+        ]
+      },
 
+      "3":{
+        "token-delimitators": "",
+        "protocol": "HTTP",
+        "prefix": "http://127.0.0.1:9080/plantType", 
+        "caller":"remote",
+        "buffer-tokens":[
           {
             "name":"Get the plant type suggestion",
             "description":"Command to get the plant type suggestion",
-            "token-type":"string", // What type of token should be fuzzed in this position of the buffer
+            "token-type":"string",
             "byte-size":256,
-            "regex-rule": "/plantType", // Optional parameter to guide fuzzer generator
-            "optional": false // Can the fuzzer give a null value on this token?
-          },
+            "regex-rule": "",
+            "optional": false
+          }
+        ]
+      },
 
+      "4":{
+        "token-delimitators": "",
+        "protocol": "HTTP",
+        "prefix": "http://127.0.0.1:9080/preconfigurations/getAll",
+        "caller":"remote", 
+        "buffer-tokens":[
           {
             "name":"Get all the preconfigurations of the greenhouse",
             "description":"Command to get all the preconfigurations of the greenhouse",
-            "token-type":"string", // What type of token should be fuzzed in this position of the buffer
+            "token-type":"string",
             "byte-size":256,
-            "regex-rule": "/preconfigurations/getAll", // Optional parameter to guide fuzzer generator
-            "optional": false // Can the fuzzer give a null value on this token?
-          },
+            "regex-rule": "",
+            "optional": false
+          }
+        ]
+      },
+
+      "5":{
+        "token-delimitators": "",
+        "protocol": "HTTP",
+        "prefix": "http://127.0.0.1:9080/waterAmount",
+        "caller":"remote",
+        "buffer-tokens":[
+          {
+            "name":"Get the amount of water calculated by the system",
+            "description":"Command to get the amount of water calculated by the system",
+            "token-type":"string",
+            "byte-size":256,
+            "regex-rule": "",
+            "optional": false
+          }
+        ]
+      },
+
+      "6":{
+        "token-delimitators": "",
+        "protocol": "HTTP",
+        "prefix": "http://127.0.0.1:9080/irigationTime",
+        "caller":"remote",
+        "buffer-tokens":[
+          {
+            "name":"Get the irigation time calculated by the system",
+            "description":"Command to get the irigation time calculated by the system",
+            "token-type":"string",
+            "byte-size":256,
+            "regex-rule": "",
+            "optional": false
+          }
           
           ]
       }

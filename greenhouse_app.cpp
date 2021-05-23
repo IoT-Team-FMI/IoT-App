@@ -124,6 +124,7 @@ private:
         Routes::Get(router, "/preconfigurations/getAll", Routes::bind(&GreenhouseEndpoint::getPreconfigurations, this));
         Routes::Post(router, "/preconfigurations/select/:value", Routes::bind(&GreenhouseEndpoint::setPreconfiguration, this));
         Routes::Post(router, "/preconfigurations", Routes::bind(&GreenhouseEndpoint::addPreconfiguration, this));
+        Routes::Post(router, "/soilHistory", Routes::bind(&GreenhouseEndpoint::addPlant, this));
         Routes::Get(router, "/plantType", Routes::bind(&GreenhouseEndpoint::getPlantTypeSuggestion, this));
     }
 
@@ -189,6 +190,32 @@ private:
         }
         else {
             response.send(Http::Code::Not_Found, "Error occured. Could not add a new preconfiguration");
+        }
+
+    }
+
+    void addPlant(const Rest::Request& request, Http::ResponseWriter response){
+        // You don't know what the parameter content that you receive is, but you should
+        // try to cast it to some data structure. Here, I cast the settingName to string.
+        string requestSettings = request.body();
+
+        json j = json::parse(requestSettings);
+
+        // This is a guard that prevents editing the same value by two concurent threads. 
+        Guard guard(greenhouseLock);
+
+        std::string plant;
+        j.at("plantType").get_to(plant);     
+
+        // Setting the Greenhouse's setting to value
+        int setResponse = gh.addPlant(plant);
+
+        // Sending some confirmation or error response.
+        if (setResponse == 1) {
+            response.send(Http::Code::Ok, "Added a new plant to soil history");
+        }
+        else {
+            response.send(Http::Code::Not_Found, "Error occured. Could not add a new plant to soil history");
         }
 
     }
@@ -678,6 +705,12 @@ private:
         int addPreconfiguration(Preconfiguration p)
         {
             preconfigurations.push_back(p);
+            return 1;
+        }
+
+        int addPlant(std::string plant)
+        {
+            soilHistory.push_back(plant);
             return 1;
         }
 
