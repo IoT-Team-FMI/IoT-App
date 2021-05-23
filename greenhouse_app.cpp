@@ -20,6 +20,7 @@
 #include <list>
 #include <fstream>
 #include <time.h>
+#include <ctime>
 
 #include "./json.hpp"
 
@@ -403,17 +404,17 @@ private:
 
             for (int i = 0; i < soilHistory.size(); i++)
             {
-                auto it = plants.find(soilHistory[i])
-                if (it != soilHistory.end())
+                auto it = plants.find(soilHistory[i]);
+                if (it != plants.end())
                     plants[soilHistory[i]] += 1;
                 else
                     plants[soilHistory[i]] = 1;
             }
-            if (plantType != null)
-                plants[plantType] += 1;
+            if (plantType.value != "")
+                plants[plantType.value] += 1;
             
             int minim = INT_MAX - 1;
-            int pos = -1;
+            std::string pos = "";
             for (int i = 0; i < soilHistory.size(); i++)
                 if (plants[soilHistory[i]] < minim)
                 {
@@ -591,14 +592,14 @@ private:
 
         string calculateIrigationTime()
         {
-            
+            std::string response = "";
+
             struct tm newtime;
             time_t now = time(0);
 
-            localtime_s(&newtime, &now);
+            newtime = *localtime(&now);
 
 
-            std::string response = "";
             if (newtime.tm_mday % 2 == 0)
             {
                 response = "Tomorrow, " + to_string(newtime.tm_mday + 1) + "/" + to_string(newtime.tm_mon) + "/" +
@@ -618,7 +619,7 @@ private:
 
                 
                 struct tm irigationTimeTransformed = { 0 };
-                strptime(irigationTime, '%T', &irigationTimeTransformed);
+                strptime(irigationTime, "%H:%M:%S", &irigationTimeTransformed);
                 time_t irigation = mktime(&irigationTimeTransformed);
 
                 if (now < irigation)
@@ -631,7 +632,7 @@ private:
 
             json j;
             j["irigationTime"] = response;
-            j.dump();
+            return j.dump();
         }
 
 
