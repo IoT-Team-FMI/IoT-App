@@ -6,7 +6,7 @@
       "1":{
           "token-delimitators": "", //Symbol that separates the tokens in the buffer
           "protocol": "HTTP", // The protocol used to communicate with this buffer
-          "prefix": "http://192.168.0.112:8080/", // The buffer requires that it is initialized with this content
+          "prefix": "http://127.0.0.1:9080/", // The buffer requires that it is initialized with this content
           "buffer-tokens":[// Description of each of the tokens that this buffer can receive. Think of them as the message's variables.
           {
               "name":"Camera command",
@@ -23,7 +23,34 @@
               "byte-size":256,
               "regex-rule": "=[a-zA-Z0-9]*",
               "optional": true
-          }
+          },
+          {
+            "name":"Greenhouse parameter",
+            "description": "Setting the parameter with the provided name",
+            "token-type":"string",
+            "byte-size":256,
+            "regex-rule": "settings/[a-zA-Z]*/[a-zA-Z0-9]*",
+            "optional": false
+          },
+
+          {
+            "name":"Greenhouse preconfiguration",
+            "description": "Setting the greenhouse parameters with a preconfiguration",
+            "token-type":"string",
+            "byte-size":256,
+            "regex-rule": "preconfigurations/select/[0-9]*",
+            "optional": false
+          },
+
+          {
+            "name":"New preconfiguration",
+            "description": "Adding a new preconfiguration to the greenhouse",
+            "token-type":"string",
+            "byte-size":256,
+            "regex-rule": "preconfigurations",
+            "optional": false
+          },
+          
           ]
       },
 
@@ -60,18 +87,45 @@
       "1":{
           "token-delimitators": " ",
           "protocol": "HTTP",
-          "prefix": "http://192.168.0.112:8080/", // The buffer requires that it is initialized with this content
+          "prefix": "http://127.0.0.1:9080/", // The buffer requires that it is initialized with this content
           "caller":"remote", // Remote or Local. The caller variable describes who runs this buffer. Either
 // your app sends the data (local), or the data is requested by another device (remote)
           "buffer-tokens":[
           {
-              "name":"Get image",
-              "description":"Command that returns an image",
+              "name":"Get all settings",
+              "description":"Command to get all settings",
               "token-type":"string", // What type of token should be fuzzed in this position of the buffer
               "byte-size":256,
-              "regex-rule": "/image", // Optional parameter to guide fuzzer generator
+              "regex-rule": "/settings/getAll", // Optional parameter to guide fuzzer generator
               "optional": false // Can the fuzzer give a null value on this token?
-          }
+          },
+          {
+            "name":"Get a certain setting",
+            "description":"Command to get a certain setting",
+            "token-type":"string", // What type of token should be fuzzed in this position of the buffer
+            "byte-size":256,
+            "regex-rule": "/settings/[a-zA-Z]*", // Optional parameter to guide fuzzer generator
+            "optional": false // Can the fuzzer give a null value on this token?
+          },
+
+          {
+            "name":"Get the plant type suggestion",
+            "description":"Command to get the plant type suggestion",
+            "token-type":"string", // What type of token should be fuzzed in this position of the buffer
+            "byte-size":256,
+            "regex-rule": "/plantType", // Optional parameter to guide fuzzer generator
+            "optional": false // Can the fuzzer give a null value on this token?
+          },
+
+          {
+            "name":"Get all the preconfigurations of the greenhouse",
+            "description":"Command to get all the preconfigurations of the greenhouse",
+            "token-type":"string", // What type of token should be fuzzed in this position of the buffer
+            "byte-size":256,
+            "regex-rule": "/preconfigurations/getAll", // Optional parameter to guide fuzzer generator
+            "optional": false // Can the fuzzer give a null value on this token?
+          },
+          
           ]
       }
   }
