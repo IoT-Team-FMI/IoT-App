@@ -19,10 +19,11 @@
 #include <map>
 #include <list>
 #include <fstream>
+#include <time.h>
 
-// #include <nlohmann/json.hpp>
+#include <json.hpp>
 
-// using json = nlohmann::json;
+using json = nlohmann::json;
 
 using namespace std;
 using namespace Pistache;
@@ -58,6 +59,27 @@ struct stringSetting {
     std::string name;
     std::string value;
 };
+
+struct Preconfiguration {
+    double luminosity, humidity, temperature, carbonDioxide;
+    std::string plantType;
+};
+
+void to_json(json& j, const Preconfiguration& p)
+{
+    j = json{{"luminosity", p.luminosity}, {"humidity", p.humidity}, 
+            {"temperature", p.temperature}, {"carbonDioxide", p.carbonDioxide}
+            {"plantType", p.plantType}};
+}
+
+void from_json(const json& j, Preconfiguration& p)
+{
+    j.at("luminosity").get_to(p.luminosity);
+    j.at("humidity").get_to(p.humidity);
+    j.at("temperature").get_to(p.temperature);
+    j.at("carbonDioxide").get_to(p.carbonDioxide);
+    j.at("plantType").get_to(p.plantType);
+}
 
 // Definition of the GreenhouseEnpoint class 
 class GreenhouseEndpoint {
@@ -95,6 +117,11 @@ private:
         Routes::Get(router, "/auth", Routes::bind(&GreenhouseEndpoint::doAuth, this));
         Routes::Post(router, "/settings/:settingName/:value", Routes::bind(&GreenhouseEndpoint::setSetting, this));
         Routes::Get(router, "/settings/:settingName/", Routes::bind(&GreenhouseEndpoint::getSetting, this));
+        Routes::Get(router, "/settings/getAll", Routes::bind(&GreenhouseEndpoint::getCurrentConfiguration, this));
+        Routes::Get(router, "/waterAmount", Routes::bind(&GreenhouseEndpoint::getWaterAmountNeeded, this));
+        Routes::Get(router, "/irigationTime", Routes::bind(&GreenhouseEndpoint::getIrigationTime, this));
+        Routes::Get(router, "/preconfigurations/getAll", Routes::bind(&GreenhouseEndpoint::getPreconfigurations, this));
+        Routes::Post(router, "/preconfigurations/select/:value", Routes::bind(&GreenhouseEndpoint::setPreconfiguration, this));
     }
 
     
@@ -160,6 +187,112 @@ private:
         }
     }
 
+    void getCurrentConfiguration(const Rest::Request& request, Http::ResponseWriter response){
+
+        Guard guard(greenhouseLock);
+
+        string stringJSON = gh.getCurrentConfiguration();
+
+        if (stringJSON != "") {
+
+            // In this response I also add a couple of headers, describing the server that sent this response, and the way the content is formatted.
+            using namespace Http;
+            response.headers()
+                        .add<Header::Server>("pistache/0.1")
+                        .add<Header::ContentType>(MIME(Text, Plain));
+
+            response.send(Http::Code::Ok, stringJSON);
+        }
+        else {
+            response.send(Http::Code::Not_Found, "An error has occured.");
+        }
+    }
+
+    void getWaterAmountNeeded(const Rest::Request& request, Http::ResponseWriter response){
+
+        Guard guard(greenhouseLock);
+
+        string stringJSON = gh.calculateWaterAmount();
+
+        if (stringJSON != "") {
+
+            // In this response I also add a couple of headers, describing the server that sent this response, and the way the content is formatted.
+            using namespace Http;
+            response.headers()
+                        .add<Header::Server>("pistache/0.1")
+                        .add<Header::ContentType>(MIME(Text, Plain));
+
+            response.send(Http::Code::Ok, stringJSON);
+        }
+        else {
+            response.send(Http::Code::Not_Found, "An error has occured.");
+        }
+    }
+
+    void getIrigationTime(const Rest::Request& request, Http::ResponseWriter response){
+
+        Guard guard(greenhouseLock);
+
+        string stringJSON = gh.calculateIrigationTime();
+
+        if (stringJSON != "") {
+
+            // In this response I also add a couple of headers, describing the server that sent this response, and the way the content is formatted.
+            using namespace Http;
+            response.headers()
+                        .add<Header::Server>("pistache/0.1")
+                        .add<Header::ContentType>(MIME(Text, Plain));
+
+            response.send(Http::Code::Ok, stringJSON);
+        }
+        else {
+            response.send(Http::Code::Not_Found, "An error has occured.");
+        }
+    }
+
+    void getPreconfigurations(const Rest::Request& request, Http::ResponseWriter response){
+
+        Guard guard(greenhouseLock);
+
+        string stringJSON = gh.configurationsToJSON();
+
+        if (stringJSON != "") {
+
+            // In this response I also add a couple of headers, describing the server that sent this response, and the way the content is formatted.
+            using namespace Http;
+            response.headers()
+                        .add<Header::Server>("pistache/0.1")
+                        .add<Header::ContentType>(MIME(Text, Plain));
+
+            response.send(Http::Code::Ok, stringJSON);
+        }
+        else {
+            response.send(Http::Code::Not_Found, "An error has occured.");
+        }
+    }
+
+    void setPreconfigurations(const Rest::Request& request, Http::ResponseWriter response){
+        // You don't know what the parameter content that you receive is, but you should
+        // try to cast it to some data structure. Here, I cast the settingName to string.
+        int nrConfig = request.param(":value").as<int>();
+
+        // This is a guard that prevents editing the same value by two concurent threads. 
+        Guard guard(greenhouseLock);
+
+
+        // Setting the Greenhouse's setting to value
+        int setResponse = gh.setPreconfiguration(nrConfig);
+
+        // Sending some confirmation or error response.
+        if (setResponse == 1) {
+            response.send(Http::Code::Ok, "Configuration " + to_string(nrConfig) + " was applied");
+        }
+        else {
+            response.send(Http::Code::Not_Found, "The preconfiguration " + to_string(nr_config) + " was not found");
+        }
+
+    }
+
     // Defining the class of the Greenhouse. It should model the entire configuration of the Greenhouse
     class Greenhouse {
     public:
@@ -174,6 +307,8 @@ private:
 
             readSoilHistory();
             readIdealParameters();
+            readPreconfigurations();
+            setPreconfiguration(0);
         }
         
         void readSoilHistory()
@@ -199,6 +334,44 @@ private:
             ideal_parameters.humidity = value[1];
             ideal_parameters.temperature = value[2];
             ideal_parameters.carbonDioxide = value[3];
+        }
+
+        void readPreconfigurations()
+        {
+            ifstream fin(preconfigurationsLocation);
+            int nrPreconfigurations;
+            fin >> nrPreconfigurations;
+            for (int i = 0; i < nrPreconfigurations; i++)
+            {
+                Preconfigration p;
+                fin >> p.luminosity >> p.humidity >> p.temperature >> p.carbonDioxide >> p.plantType;
+                preconfigurations.push_back(p);
+
+            }
+        }
+
+        int setPreconfiguration(int nrPreconfig)
+        {
+            if (nrPreconfig >= preconfigurations.size())
+            {
+                return -1;
+            }
+
+            Preconfiguration& p = preconfigurations[nrPreconfig];
+            luminosity.value = p.luminosity;
+            humidity.value = p.humidity;
+            temperature.value = p.temperature;
+            carbonDioxide.value = p.carbonDioxide;
+            plantType.value = p.plantType;
+
+            return 1;
+        }
+
+        string preconfigurationsToJSON()
+        {
+            json j(preconfigurations);
+
+            return j.dump();
         }
 
         // Setting the value for one of the settings. Hardcoded for the defrosting option
@@ -330,7 +503,87 @@ private:
             if (name == plantType.name) {
                 return plantType.value;
             }
+
+            return "";
         }
+
+        string getCurrentConfiguration()
+        {
+            json j;
+            j["luminosity"] = luminosity.value;
+            j["humidity"] = humidity.value;
+            j["temperature"] = temperature.value;
+            j["carbonDioxide"] = carbonDioxide.value;
+            j["area"] = area.value;
+            j["waterAmount"] = waterAmount.value;
+            j["plantType"] = plantType.value;
+
+            return j.dump();
+        }
+
+        string calculateWaterAmount()
+        {
+            double result;
+            json j;
+            if (temperature.value < 25)
+                result = area.value * 0.7;
+            else if (temperature.value >= 25 && temperature.value <= 28)
+                result = area.value * 0.8;
+            else
+                result = area.value * 0.9;
+            
+            j["waterAmount"] = result;
+
+            return j.dump();
+
+        }
+
+        string calculateIrigationTime()
+        {
+            
+            struct tm newtime;
+            time_t now = time(0);
+
+            localtime_s(&newtime, &now);
+
+
+            std::string response = "";
+            if (newtime.tm_mday % 2 == 0)
+            {
+                response = "Tomorrow, " + to_string(newtime.tm_mday + 1) + "/" + to_string(newtime.tm_mon) + "/" +
+                    to_string(newtime.tm_year) + ", " + "07:00:00 AM";
+            }
+            else
+            {
+                std::string currentTime = to_string(newtime.tm_hour) + "/" + to_string(newtime.tm_min) +
+                    to_string(newtime.tm_sec);
+
+                std::string irigationTime = "7:0:0";
+
+                if (currentTime.compare(irigationTime) > 0)
+                    cout << "lower";
+                else
+                    cout << "higher";
+
+                
+                struct tm irigationTimeTransformed = { 0 };
+                strptime(irigationTime, '%T', irigationTimeTransformed);
+                time_t irigation = mktime(irigationTimeTransformed);
+
+                if (now < irigation)
+                    response = "Today, " + to_string(newtime.tm_mday) + "/" + to_string(newtime.tm_mon) + "/" +
+                    to_string(newtime.tm_year) + ", " + "07:00:00 AM";
+                else 
+                response = "After 2 days, " + to_string(newtime.tm_mday) + "/" + to_string(newtime.tm_mon) + "/" +
+                    to_string(newtime.tm_year) + ", " + "07:00:00 AM";
+            }
+
+            json j;
+            j["irigationTime"] = result;
+            j.dump();
+        }
+
+
         
     private:
         struct parameters {
@@ -345,9 +598,10 @@ private:
 
         map<std::string, std::string> actions;
         list<std::string> soilHistory;
+        vector<Preconfiguration> preconfigurations;
         const std::string soilHistoryLocation = "soil_history.txt";
         const std::string idealParametersLocation = "ideal_parameters.txt";
-
+        const std::string preconfigurationsLocation = "preconfigurations.txt";
 
         // temporary
         // Defining and instantiating settings.
