@@ -21,7 +21,7 @@
 #include <fstream>
 #include <time.h>
 
-#include <json.hpp>
+#include "./json.hpp"
 
 using json = nlohmann::json;
 
@@ -68,7 +68,7 @@ struct Preconfiguration {
 void to_json(json& j, const Preconfiguration& p)
 {
     j = json{{"luminosity", p.luminosity}, {"humidity", p.humidity}, 
-            {"temperature", p.temperature}, {"carbonDioxide", p.carbonDioxide}
+            {"temperature", p.temperature}, {"carbonDioxide", p.carbonDioxide},
             {"plantType", p.plantType}};
 }
 
@@ -122,6 +122,7 @@ private:
         Routes::Get(router, "/irigationTime", Routes::bind(&GreenhouseEndpoint::getIrigationTime, this));
         Routes::Get(router, "/preconfigurations/getAll", Routes::bind(&GreenhouseEndpoint::getPreconfigurations, this));
         Routes::Post(router, "/preconfigurations/select/:value", Routes::bind(&GreenhouseEndpoint::setPreconfiguration, this));
+        Routes::Get(router, "/plantType", Routes::bind(&GreenhouseEndpoint::getPlantTypeSuggestion, this));
     }
 
     
@@ -254,7 +255,7 @@ private:
 
         Guard guard(greenhouseLock);
 
-        string stringJSON = gh.configurationsToJSON();
+        string stringJSON = gh.preconfigurationsToJSON();
 
         if (stringJSON != "") {
 
@@ -271,7 +272,7 @@ private:
         }
     }
 
-    void setPreconfigurations(const Rest::Request& request, Http::ResponseWriter response){
+    void setPreconfiguration(const Rest::Request& request, Http::ResponseWriter response){
         // You don't know what the parameter content that you receive is, but you should
         // try to cast it to some data structure. Here, I cast the settingName to string.
         int nrConfig = request.param(":value").as<int>();
@@ -288,10 +289,32 @@ private:
             response.send(Http::Code::Ok, "Configuration " + to_string(nrConfig) + " was applied");
         }
         else {
-            response.send(Http::Code::Not_Found, "The preconfiguration " + to_string(nr_config) + " was not found");
+            response.send(Http::Code::Not_Found, "The preconfiguration " + to_string(nrConfig) + " was not found");
         }
-
     }
+
+    void getPlantTypeSuggestion(const Rest::Request& request, Http::ResponseWriter response){
+
+        Guard guard(greenhouseLock);
+
+        string stringJSON = gh.getPlantTypeSuggestion();
+
+        if (stringJSON != "") {
+
+            // In this response I also add a couple of headers, describing the server that sent this response, and the way the content is formatted.
+            using namespace Http;
+            response.headers()
+                        .add<Header::Server>("pistache/0.1")
+                        .add<Header::ContentType>(MIME(Text, Plain));
+
+            response.send(Http::Code::Ok, stringJSON);
+        }
+        else {
+            response.send(Http::Code::Not_Found, "An error has occured.");
+        }
+    }
+
+    
 
     // Defining the class of the Greenhouse. It should model the entire configuration of the Greenhouse
     class Greenhouse {
@@ -343,7 +366,7 @@ private:
             fin >> nrPreconfigurations;
             for (int i = 0; i < nrPreconfigurations; i++)
             {
-                Preconfigration p;
+                Preconfiguration p;
                 fin >> p.luminosity >> p.humidity >> p.temperature >> p.carbonDioxide >> p.plantType;
                 preconfigurations.push_back(p);
 
@@ -371,6 +394,34 @@ private:
         {
             json j(preconfigurations);
 
+            return j.dump();
+        }
+
+        string getPlantTypeSuggestion()
+        {
+            map<std::string, int> plants;
+
+            for (int i = 0; i < soilHistory.size(); i++)
+            {
+                auto it = plants.find(soilHistory[i])
+                if (it != soilHistory.end())
+                    plants[soilHistory[i]] += 1;
+                else
+                    plants[soilHistory[i]] = 1;
+            }
+            if (plantType != null)
+                plants[plantType] += 1;
+            
+            int minim = INT_MAX - 1;
+            int pos = -1;
+            for (int i = 0; i < soilHistory.size(); i++)
+                if (plants[soilHistory[i]] < minim)
+                {
+                    minim = plants[soilHistory[i]];
+                    pos = soilHistory[i];
+                }
+            json j;
+            j["suggestedPlant"] = pos;
             return j.dump();
         }
 
@@ -558,7 +609,7 @@ private:
                 std::string currentTime = to_string(newtime.tm_hour) + "/" + to_string(newtime.tm_min) +
                     to_string(newtime.tm_sec);
 
-                std::string irigationTime = "7:0:0";
+                const char* irigationTime = "7:0:0";
 
                 if (currentTime.compare(irigationTime) > 0)
                     cout << "lower";
@@ -567,8 +618,8 @@ private:
 
                 
                 struct tm irigationTimeTransformed = { 0 };
-                strptime(irigationTime, '%T', irigationTimeTransformed);
-                time_t irigation = mktime(irigationTimeTransformed);
+                strptime(irigationTime, '%T', &irigationTimeTransformed);
+                time_t irigation = mktime(&irigationTimeTransformed);
 
                 if (now < irigation)
                     response = "Today, " + to_string(newtime.tm_mday) + "/" + to_string(newtime.tm_mon) + "/" +
@@ -579,7 +630,7 @@ private:
             }
 
             json j;
-            j["irigationTime"] = result;
+            j["irigationTime"] = response;
             j.dump();
         }
 
@@ -597,7 +648,7 @@ private:
         stringSetting plantType;
 
         map<std::string, std::string> actions;
-        list<std::string> soilHistory;
+        vector<std::string> soilHistory;
         vector<Preconfiguration> preconfigurations;
         const std::string soilHistoryLocation = "soil_history.txt";
         const std::string idealParametersLocation = "ideal_parameters.txt";
