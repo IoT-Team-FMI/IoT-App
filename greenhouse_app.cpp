@@ -574,6 +574,7 @@ private:
             carbonDioxide.name = "carbonDioxide";
             area.name = "area";
             waterAmount.name = "waterAmount";
+            irigationTime.name = "irigationTime";
             plantType.name = "plantType";
 
             humidity.value = 0;
@@ -583,6 +584,7 @@ private:
             area.value = 0;
             waterAmount.value = 0;
             plantType.value = "";
+            irigationTime.value = "";
             previousPlantSugestion = "";
 
             readSoilHistory();
@@ -787,6 +789,16 @@ private:
                 return 1;
             }
 
+            if (irigationTime.name == name)
+            {
+                struct tm irigationTimeTransformed = {0};
+                auto result = strptime(value.c_str(), "%T/%F", &irigationTimeTransformed);
+                if (result != NULL)
+                {
+                    irigationTime.value = value;
+                    return 1;
+                }
+            }
             return 0;
         }
 
@@ -817,6 +829,10 @@ private:
             {
                 return std::to_string(waterAmount.value);
             }
+            if (name == irigationTime.name)
+            {
+                return irigationTime.value;
+            }
             if (name == plantType.name)
             {
                 return plantType.value;
@@ -834,6 +850,7 @@ private:
             j["carbonDioxide"] = carbonDioxide.value;
             j["area"] = area.value;
             j["waterAmount"] = waterAmount.value;
+            j["irigationTime"] = irigationTime.value;
             j["plantType"] = plantType.value;
 
             return j.dump();
@@ -877,10 +894,10 @@ private:
                 std::string currentTime = to_string(newtime.tm_hour) + "/" + to_string(newtime.tm_min) +
                                           to_string(newtime.tm_sec);
 
-                const char *irigationTime = "7:0:0";
+                const char *irigationTimeVar = "7:0:0";
 
                 struct tm irigationTimeTransformed = {0};
-                strptime(irigationTime, "%H:%M:%S", &irigationTimeTransformed);
+                strptime(irigationTimeVar, "%H:%M:%S", &irigationTimeTransformed);
                 time_t irigation = mktime(&irigationTimeTransformed);
 
                 if (now < irigation)
@@ -928,7 +945,7 @@ private:
     private:
 
         doubleSetting luminosity, humidity, temperature, carbonDioxide, area, waterAmount;
-        stringSetting plantType;
+        stringSetting plantType, irigationTime;
         std::string previousPlantSugestion;
 
         map<std::string, std::string> actions;
