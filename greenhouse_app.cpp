@@ -584,7 +584,7 @@ private:
             area.value = 0;
             waterAmount.value = 0;
             plantType.value = "";
-            irigationTime.value = "";
+            irigationTime.value = "2021-05-25-7:00:00";
             previousPlantSugestion = "";
 
             readSoilHistory();
@@ -792,7 +792,7 @@ private:
             if (irigationTime.name == name)
             {
                 struct tm irigationTimeTransformed = {0};
-                auto result = strptime(value.c_str(), "%T/%F", &irigationTimeTransformed);
+                auto result = strptime(value.c_str(), "%F-%T", &irigationTimeTransformed);
                 if (result != NULL)
                 {
                     irigationTime.value = value;
@@ -803,7 +803,7 @@ private:
         }
 
         // Getter
-        string get(std::string name)
+        string get(string name)
         {
             if (name == luminosity.name)
             {
@@ -913,8 +913,8 @@ private:
                 }
             }
 
-            response = day + to_string(newtime.tm_mday + count) + "/" + to_string(newtime.tm_mon + 1) + "/" +
-                       to_string(newtime.tm_year + 1900) + ", " + "07:00:00 AM";
+            response = day + to_string(newtime.tm_year + 1900) + "-" + to_string(newtime.tm_mon + 1) + "-" +
+                       to_string(newtime.tm_mday + count) + "-" + "07:00:00";
 
             json j;
             j["irigationTime"] = response;
