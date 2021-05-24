@@ -172,6 +172,11 @@ void from_json(const json &j, Preconfiguration &p)
     j.at("plantType").get_to(p.plantType);
 }
 
+void to_json(json &j, const std::string s)
+{
+    j = json{{"plantType", s}};
+}
+
 // Definition of the GreenhouseEnpoint class
 class GreenhouseEndpoint
 {
@@ -219,7 +224,6 @@ public:
         p.carbonDioxide = 13;
         p.plantType = "salata";
 
-
         // Setting the Greenhouse's setting to value
         int setResponse = gh.addPreconfiguration(p);
 
@@ -243,7 +247,7 @@ public:
         }
         else
         {
-           return p;
+            return p;
         }
     }
 
@@ -264,6 +268,7 @@ private:
         Routes::Post(router, "/preconfigurations/select/:value", Routes::bind(&GreenhouseEndpoint::setPreconfiguration, this));
         Routes::Post(router, "/preconfigurations", Routes::bind(&GreenhouseEndpoint::addPreconfiguration, this));
         Routes::Post(router, "/soilHistory", Routes::bind(&GreenhouseEndpoint::addPlant, this));
+        Routes::Get(router, "/soilHistory", Routes::bind(&GreenhouseEndpoint::getSoilHistory, this));
         Routes::Get(router, "/plantType", Routes::bind(&GreenhouseEndpoint::getPlantTypeSuggestion, this));
     }
 
@@ -362,6 +367,31 @@ private:
             response.send(Http::Code::Not_Found, "Error occured. Could not add a new plant to soil history");
         }
     }
+
+    void getSoilHistory(const Rest::Request &request, Http::ResponseWriter response)
+    {
+
+        Guard guard(greenhouseLock);
+
+        string stringJSON = gh.soilHistoryToJSON();
+
+        if (stringJSON != "")
+        {
+
+            // In this response I also add a couple of headers, describing the server that sent this response, and the way the content is formatted.
+            using namespace Http;
+            response.headers()
+                .add<Header::Server>("pistache/0.1")
+                .add<Header::ContentType>(MIME(Text, Plain));
+
+            response.send(Http::Code::Ok, stringJSON);
+        }
+        else
+        {
+            response.send(Http::Code::Not_Found, "An error has occured.");
+        }
+    }
+
 
     // Setting to get the settings value of one of the configurations of the Greenhouse
     void getSetting(const Rest::Request &request, Http::ResponseWriter response)
@@ -556,7 +586,6 @@ private:
             previousPlantSugestion = "";
 
             readSoilHistory();
-            readIdealParameters();
             readPreconfigurations();
             setPreconfiguration(0);
         }
@@ -572,17 +601,6 @@ private:
                 fin >> plant;
                 soilHistory.push_back(plant);
             }
-        }
-
-        void readIdealParameters()
-        {
-            ifstream fin(idealParametersLocation);
-            double value[4];
-            fin >> value[0] >> value[1] >> value[2] >> value[3];
-            ideal_parameters.luminosity = value[0];
-            ideal_parameters.humidity = value[1];
-            ideal_parameters.temperature = value[2];
-            ideal_parameters.carbonDioxide = value[3];
         }
 
         void readPreconfigurations()
@@ -618,6 +636,13 @@ private:
         string preconfigurationsToJSON()
         {
             json j(preconfigurations);
+
+            return j.dump();
+        }
+
+        string soilHistoryToJSON()
+        {
+            json j(soilHistory);
 
             return j.dump();
         }
@@ -901,13 +926,6 @@ private:
         }
 
     private:
-        struct parameters
-        {
-            double luminosity;
-            double humidity;
-            double temperature;
-            double carbonDioxide;
-        } ideal_parameters;
 
         doubleSetting luminosity, humidity, temperature, carbonDioxide, area, waterAmount;
         stringSetting plantType;
@@ -917,16 +935,8 @@ private:
         vector<std::string> soilHistory;
         vector<Preconfiguration> preconfigurations;
         const std::string soilHistoryLocation = "soil_history.txt";
-        const std::string idealParametersLocation = "ideal_parameters.txt";
         const std::string preconfigurationsLocation = "preconfigurations.txt";
 
-        // temporary
-        // Defining and instantiating settings.
-        struct boolSetting
-        {
-            std::string name;
-            bool value;
-        } defrost;
     };
     // Create the lock which prevents concurrent editing of the same variable
     using Lock = std::mutex;

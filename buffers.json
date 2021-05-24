@@ -1,7 +1,7 @@
 {
   "device-name": "SmartGreenhouse",
   "device-type": "Greenhouse",
-  "buffers-count": 10,
+  "buffers-count": 11,
   "input-buffers":{
       "1":{
           "token-delimitators": "/",
@@ -163,6 +163,23 @@
           {
             "name":"Get the irigation time calculated by the system",
             "description":"Command to get the irigation time calculated by the system",
+            "token-type":"string",
+            "byte-size":256,
+            "regex-rule": "",
+            "optional": false
+          }
+          
+          ]
+      },
+      "7":{
+        "token-delimitators": "",
+        "protocol": "HTTP",
+        "prefix": "http://127.0.0.1:9080/soilHistory",
+        "caller":"remote",
+        "buffer-tokens":[
+          {
+            "name":"Get the history of the soil",
+            "description":"Command to get the history of the soil",
             "token-type":"string",
             "byte-size":256,
             "regex-rule": "",
