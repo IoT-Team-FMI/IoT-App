@@ -10,3 +10,6 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
 RUN add-apt-repository ppa:pistache+team/unstable \
     && apt update \
     && apt -y install libpistache-dev
+
+RUN apt update && apt -y install \
+    mosquitto mosquitto-clients libmosquitto-dev
