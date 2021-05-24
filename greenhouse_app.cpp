@@ -390,6 +390,7 @@ private:
             area.value = 0;
             waterAmount.value = 0;
             plantType.value = "";
+            previousPlantSugestion = "";
 
             readSoilHistory();
             readIdealParameters();
@@ -467,9 +468,9 @@ private:
             for (int i = 0; i < soilHistory.size(); i++)
             {
                 auto it = plants.find(soilHistory[i]);
-                if (it != plants.end())
+                if (it != plants.end() && soilHistory[i] != previousPlantSugestion)
                     plants[soilHistory[i]] += 1;
-                else
+                else if (soilHistory[i] != previousPlantSugestion)
                     plants[soilHistory[i]] = 1;
             }
             if (plantType.value != "")
@@ -478,13 +479,14 @@ private:
             int minim = INT_MAX - 1;
             std::string pos = "";
             for (int i = 0; i < soilHistory.size(); i++)
-                if (plants[soilHistory[i]] < minim)
+                if (plants[soilHistory[i]] < minim && soilHistory[i] != previousPlantSugestion)
                 {
                     minim = plants[soilHistory[i]];
                     pos = soilHistory[i];
                 }
             json j;
             j["suggestedPlant"] = pos;
+            previousPlantSugestion = pos;
             return j.dump();
         }
 
@@ -726,6 +728,7 @@ private:
 
         doubleSetting luminosity, humidity, temperature, carbonDioxide, area, waterAmount;
         stringSetting plantType;
+        std::string previousPlantSugestion;
 
         map<std::string, std::string> actions;
         vector<std::string> soilHistory;
