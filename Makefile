@@ -1,5 +1,5 @@
 CXXFLAGS= -std=c++17
-LDLIBS= -lpistache -lcrypto -lssl -lpthread
+LDLIBS= -lpistache -lcrypto -lssl -lpthread -lmosquitto
 
 include easymake.mk
 

@@ -207,36 +207,43 @@ public:
     const int HTTP = 0;
     const int MQTT = 1;
 
-    json genericAddPreconfiguration(json clientJson, int reqType)
+    json genericAddPreconfiguration(int reqType)
     {
         Preconfiguration p;
 
-        from_json(clientJson, p);
+        // from_json(clientJson, p);
+
+        p.luminosity = 10;
+        p.humidity = 11;
+        p.temperature = 12;
+        p.carbonDioxide = 13;
+        p.plantType = "salata";
+
 
         // Setting the Greenhouse's setting to value
         int setResponse = gh.addPreconfiguration(p);
 
         // Sending some confirmation or error response.
-        if (setResponse == 1)
+        if (setResponse == -1)
         {
             if (reqType == HTTP)
             {
 
-                ErrorHTTP error(Http::Code::Bad_Request, "The quantity must be positive!");
+                ErrorHTTP error(Http::Code::Bad_Request, "The preconfiguration already exists");
                 json jsonErrorHttp(error);
                 return jsonErrorHttp;
             }
             else
             {
-                ErrorMQTT error("The quantity must be positive!");
+                ErrorMQTT error("The preconfiguration already exists");
                 json jsonError(error);
                 return jsonError;
             }
-            // response.send(Http::Code::Ok, "Added a new preconfiguration");
+            
         }
         else
         {
-            // response.send(Http::Code::Not_Found, "Error occured. Could not add a new preconfiguration");
+           return p;
         }
     }
 
@@ -302,16 +309,30 @@ private:
         }
     }
 
-    void addPreconfiguration(const Rest::Request &request, Http::ResponseWriter response)
-    {
+    void addPreconfiguration(const Rest::Request& request, Http::ResponseWriter response){
         // You don't know what the parameter content that you receive is, but you should
         // try to cast it to some data structure. Here, I cast the settingName to string.
         string requestSettings = request.body();
+        Preconfiguration p;
 
         json j = json::parse(requestSettings);
 
-        // This is a guard that prevents editing the same value by two concurent threads.
+        // This is a guard that prevents editing the same value by two concurent threads. 
         Guard guard(greenhouseLock);
+
+        from_json(j, p);     
+
+        // Setting the Greenhouse's setting to value
+        int setResponse = gh.addPreconfiguration(p);
+
+        // Sending some confirmation or error response.
+        if (setResponse == 1) {
+            response.send(Http::Code::Ok, "Added a new preconfiguration");
+        }
+        else {
+            response.send(Http::Code::Not_Found, "Error occured. Could not add a new preconfiguration");
+        }
+
     }
 
     void addPlant(const Rest::Request &request, Http::ResponseWriter response)
@@ -975,9 +996,9 @@ int main(int argc, char *argv[])
         }
         while (1)
         {
-            // json response = stats.genericAddPreconfiguration(GetCurrentFruits(), Generic::MQTT);
-            // string stringJuice = juice.dump();
-            // mosquitto_publish(mosq, NULL, "mqtt", stringJuice.size(), stringJuice.c_str(), 0, false);
+            json preconfig = stats.genericAddPreconfiguration(1);
+            string stringPreconfig = preconfig.dump();
+            mosquitto_publish(mosq, NULL, "mqtt", stringPreconfig.size(), stringPreconfig.c_str(), 0, false);
             sleep(20);
         }
     }
