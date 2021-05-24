@@ -43,10 +43,21 @@ You can build the `greenhouse` executable by running `make`.
 
 ### Running
 
-To start the server run\
-`./bin/greenhouse_app`
+### Start de MQTT process - check the bottom spec if not working
+```
+mosquitto -v
+```
 
+### Run the file
+```
+./bin/greenhouse_app
+```
 Your server should display the number of cores being used and no errors.
+
+### Subscribe to topic
+```
+mosquitto_sub -t mqtt
+```
 
 To test, open up another terminal, and type\
 `curl http://localhost:9080/ready`
